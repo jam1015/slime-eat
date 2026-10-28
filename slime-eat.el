@@ -56,10 +56,17 @@ Call `slime-eat-refresh-hooks' after changing this value to apply."
 (defvar-local slime-eat-target-buffer nil
   "Eat buffer this source buffer sends to.")
 
+(defun slime-eat--target-buffer-p (buf)
+  "Non-nil if BUF is a valid slime-eat target."
+  (with-current-buffer buf
+    (or (bound-and-true-p eat-terminal)
+        (derived-mode-p 'eshell-mode))))
+
 (defun slime-eat--eat-buffers ()
-  "Return the list of live buffers hosting an eat terminal."
-  (seq-filter (lambda (b) (buffer-local-value 'eat-terminal b))
-              (buffer-list)))
+  "Return the list of live buffers usable as slime-eat targets.
+Includes eat-mode buffers and eshell buffers (which use eat
+internally for TUIs via `eat-eshell-mode')."
+  (seq-filter #'slime-eat--target-buffer-p (buffer-list)))
 
 (defun slime-eat--annotate (name)
   "Annotation shown next to candidate NAME in `slime-eat-select-target'."
@@ -80,7 +87,7 @@ Call `slime-eat-refresh-hooks' after changing this value to apply."
   (interactive
    (let ((cands (mapcar #'buffer-name (slime-eat--eat-buffers))))
      (unless cands
-       (user-error "No eat terminals running.  Start one with M-x eat"))
+       (user-error "No eat or eshell buffers running"))
      (list
       (get-buffer
        (let ((completion-extra-properties
@@ -90,24 +97,39 @@ Call `slime-eat-refresh-hooks' after changing this value to apply."
   (message "slime-eat target: %s" (buffer-name buffer)))
 
 (defun slime-eat--ensure-target ()
-  "Return the current target eat buffer, prompting if unset or stale."
+  "Return the current target buffer, prompting if unset or stale."
   (unless (and (buffer-live-p slime-eat-target-buffer)
-               (buffer-local-value 'eat-terminal slime-eat-target-buffer))
+               (slime-eat--target-buffer-p slime-eat-target-buffer))
     (call-interactively #'slime-eat-select-target))
   slime-eat-target-buffer)
 
+(defun slime-eat--send-to-eat (text)
+  "Send TEXT to the current buffer's eat terminal."
+  (if slime-eat-bracketed-paste
+      (progn
+        (eat-term-send-string eat-terminal "\e[200~")
+        (eat-term-send-string eat-terminal text)
+        (eat-term-send-string eat-terminal "\e[201~")
+        (eat-term-send-string eat-terminal "\r"))
+    (eat-term-send-string eat-terminal text)
+    (unless (string-suffix-p "\n" text)
+      (eat-term-send-string eat-terminal "\r"))))
+
+(defun slime-eat--send-to-eshell (text)
+  "Insert TEXT at the eshell prompt and submit."
+  (goto-char (point-max))
+  (insert (string-trim-right text "\n"))
+  (eshell-send-input))
+
 (defun slime-eat-send-string (text)
-  "Send TEXT to the target eat buffer."
+  "Send TEXT to the target buffer, dispatching on its mode."
   (let ((buf (slime-eat--ensure-target)))
     (with-current-buffer buf
-      (if slime-eat-bracketed-paste
-          (progn
-            (eat-term-send-string eat-terminal "\e[200~")
-            (eat-term-send-string eat-terminal text)
-            (eat-term-send-string eat-terminal "\e[201~")
-            (when (string-suffix-p "\n" text)
-              (eat-term-send-string eat-terminal "\r")))
-        (eat-term-send-string eat-terminal text)))))
+      (cond
+       ((bound-and-true-p eat-terminal) (slime-eat--send-to-eat text))
+       ((derived-mode-p 'eshell-mode)   (slime-eat--send-to-eshell text))
+       (t (user-error "Target buffer %s is neither eat nor eshell"
+                      (buffer-name)))))))
 
 (evil-define-operator slime-eat-send-op (beg end type)
   "Evil operator: send the motion or text object to the eat target."
