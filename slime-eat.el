@@ -116,10 +116,18 @@ internally for TUIs via `eat-eshell-mode')."
       (eat-term-send-string eat-terminal "\r"))))
 
 (defun slime-eat--send-to-eshell (text)
-  "Insert TEXT at the eshell prompt and submit."
-  (goto-char (point-max))
-  (insert (string-trim-right text "\n"))
-  (eshell-send-input))
+  "Send TEXT to an eshell buffer.
+If a subprocess is attached (e.g. a REPL running under eshell),
+forward TEXT directly to it so eshell does not try to parse it as
+a shell command.  Otherwise, insert at the prompt and submit via
+`eshell-send-input'."
+  (if-let* ((proc (get-buffer-process (current-buffer))))
+      (process-send-string
+       proc
+       (if (string-suffix-p "\n" text) text (concat text "\n")))
+    (goto-char (point-max))
+    (insert (string-trim-right text "\n"))
+    (eshell-send-input)))
 
 (defun slime-eat-send-string (text)
   "Send TEXT to the target buffer, dispatching on its mode."
