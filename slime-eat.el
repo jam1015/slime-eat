@@ -61,14 +61,31 @@ Call `slime-eat-refresh-hooks' after changing this value to apply."
   (seq-filter (lambda (b) (buffer-local-value 'eat-terminal b))
               (buffer-list)))
 
+(defun slime-eat--annotate (name)
+  "Annotation shown next to candidate NAME in `slime-eat-select-target'."
+  (when-let* ((buf (get-buffer name))
+              ((buffer-live-p buf)))
+    (let* ((dir (buffer-local-value 'default-directory buf))
+           (proc (get-buffer-process buf))
+           (status (if proc (symbol-name (process-status proc)) "no-proc"))
+           (cmd (and proc (car (process-command proc)))))
+      (format "  [%s%s]  %s"
+              status
+              (if cmd (concat " " (file-name-nondirectory cmd)) "")
+              (abbreviate-file-name (or dir ""))))))
+
 ;;;###autoload
 (defun slime-eat-select-target (buffer)
   "Pick BUFFER as the eat target for the current buffer."
   (interactive
-   (list (get-buffer
-          (completing-read "Eat target: "
-                           (mapcar #'buffer-name (slime-eat--eat-buffers))
-                           nil t))))
+   (let ((cands (mapcar #'buffer-name (slime-eat--eat-buffers))))
+     (unless cands
+       (user-error "No eat terminals running.  Start one with M-x eat"))
+     (list
+      (get-buffer
+       (let ((completion-extra-properties
+              '(:annotation-function slime-eat--annotate)))
+         (completing-read "Eat target: " cands nil t))))))
   (setq slime-eat-target-buffer buffer)
   (message "slime-eat target: %s" (buffer-name buffer)))
 
