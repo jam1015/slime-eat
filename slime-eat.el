@@ -50,13 +50,8 @@ bracketed paste (e.g. plain python without ipython)."
 
 (defcustom slime-eat-modes nil
   "Major modes in which `slime-eat-mode' is automatically enabled.
-After changing this outside of customize, call
-`slime-eat-refresh-hooks' to apply."
-  :type '(repeat symbol)
-  :set (lambda (sym val)
-         (set-default sym val)
-         (when (fboundp 'slime-eat-refresh-hooks)
-           (slime-eat-refresh-hooks))))
+Call `slime-eat-refresh-hooks' after changing this value to apply."
+  :type '(repeat symbol))
 
 (defvar-local slime-eat-target-buffer nil
   "Eat buffer this source buffer sends to.")
