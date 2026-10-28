@@ -21,13 +21,16 @@ With [elpaca](https://github.com/progfolio/elpaca) + `use-package`:
 
 ## Keys
 
-Enabled wherever `slime-eat-mode` is active (controlled by `slime-eat-modes`):
+The package ships `slime-eat-mode` with an empty keymap. Bind keys in
+your own config, e.g.:
 
-| Key    | Mode   | Action                                 |
-|--------|--------|----------------------------------------|
-| `gz`   | normal | Evil operator — send `{motion}`        |
-| `gzz`  | normal | Send current line                      |
-| `gz`   | visual | Send selection                         |
+```elisp
+(with-eval-after-load 'slime-eat
+  (evil-define-key '(normal visual) slime-eat-mode-map
+    "gz" #'slime-eat-send-op)
+  (evil-define-key 'normal slime-eat-mode-map
+    "gzz" #'slime-eat-send-line))
+```
 
 The first send prompts for a target eat buffer; it's then stored
 buffer-locally. Reselect with `M-x slime-eat-select-target`.

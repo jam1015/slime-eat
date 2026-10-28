@@ -116,18 +116,17 @@ After changing this outside of customize, call
                      'line))
 
 (defvar slime-eat-mode-map (make-sparse-keymap)
-  "Keymap used in `slime-eat-mode' buffers.")
+  "Keymap used in `slime-eat-mode' buffers.
+Left empty by the package; bind keys in your own config, e.g.:
+
+  (evil-define-key \\='(normal visual) slime-eat-mode-map
+    \"gz\" #\\='slime-eat-send-op)")
 
 ;;;###autoload
 (define-minor-mode slime-eat-mode
-  "Buffer-local mode enabling vim-slime-style send bindings for eat."
+  "Buffer-local mode exposing a keymap for slime-eat send commands."
   :lighter " Slime"
   :keymap slime-eat-mode-map)
-
-(evil-define-key '(normal visual) slime-eat-mode-map
-  "gz" #'slime-eat-send-op)
-(evil-define-key 'normal slime-eat-mode-map
-  "gzz" #'slime-eat-send-line)
 
 (defvar slime-eat--hooked-modes nil
   "Modes currently hooked by `slime-eat-refresh-hooks'.")
