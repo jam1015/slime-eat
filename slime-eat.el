@@ -129,13 +129,28 @@ a shell command.  Otherwise, insert at the prompt and submit via
     (insert (string-trim-right text "\n"))
     (eshell-send-input)))
 
+(defun slime-eat--eshell-under-eat-p ()
+  "Non-nil if the current eshell buffer has eat active for a visual command.
+Mirrors the detection used by `eat-eshell-mode' itself."
+  (or (bound-and-true-p eat--eshell-semi-char-mode)
+      (bound-and-true-p eat--eshell-char-mode)))
+
 (defun slime-eat-send-string (text)
   "Send TEXT to the target buffer, dispatching on its mode."
   (let ((buf (slime-eat--ensure-target)))
     (with-current-buffer buf
       (cond
-       ((bound-and-true-p eat-terminal) (slime-eat--send-to-eat text))
-       ((derived-mode-p 'eshell-mode)   (slime-eat--send-to-eshell text))
+       ;; eat-eshell has a TUI running: route through eat-terminal.
+       ((and (derived-mode-p 'eshell-mode)
+             (slime-eat--eshell-under-eat-p)
+             (bound-and-true-p eat-terminal))
+        (slime-eat--send-to-eat text))
+       ;; Plain eat buffer.
+       ((bound-and-true-p eat-terminal)
+        (slime-eat--send-to-eat text))
+       ;; Eshell at prompt, or with a non-eat subprocess attached.
+       ((derived-mode-p 'eshell-mode)
+        (slime-eat--send-to-eshell text))
        (t (user-error "Target buffer %s is neither eat nor eshell"
                       (buffer-name)))))))
 
