@@ -37,6 +37,8 @@
 (require 'eat)
 (require 'evil)
 
+(declare-function eshell-send-input "esh-mode" (&optional use-region queue-p no-newline))
+
 (defgroup slime-eat nil
   "Send text to eat terminal buffers, vim-slime style."
   :group 'eat
